@@ -1,0 +1,15 @@
+:host{display:block;}
+.editor-container {
+  text-align: center;
+  margin: 20px auto;
+}
+
+.controls {
+  margin-bottom: 10px;
+}
+
+canvas {
+  cursor: crosshair;
+  display: block;
+  margin: 0 auto;
+}

@@ -1,0 +1,25 @@
+<div class="editor-container">
+  <h3>Angular 20 Image Editor</h3>
+
+  <!-- Upload Control -->
+  <div class="controls">
+    <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+  </div>
+
+  <div class="buttons" *ngIf="imageLoaded">
+    <button (click)="undo()" [disabled]="undoStack.length === 0">Undo</button>
+    <button (click)="redo()" [disabled]="redoStack.length === 0">Redo</button>
+    <button (click)="clearRects()" [disabled]="rects.length === 0">Clear</button>
+    <button (click)="saveImage()">Save</button>
+  </div>
+
+  <canvas
+    #myCanvas
+    width="800"
+    height="500"
+    style="border: 1px solid #000;"
+    (mousedown)="onMouseDown($event)"
+    (mousemove)="onMouseMove($event)"
+    (mouseup)="onMouseUp()"
+  ></canvas>
+</div>
