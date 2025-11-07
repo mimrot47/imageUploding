@@ -25,35 +25,34 @@ export class Imageeditor implements AfterViewInit {
 
   private ctx!: CanvasRenderingContext2D;
   private img = new Image();
-
   imageLoaded = false;
 
-  // Drawing state
-  private drawing = false;
-  private dragging = false;
-  private dragOffsetX = 0;
-  private dragOffsetY = 0;
-  private selectedShapeIndex: number | null = null;
-  private startX = 0;
-  private startY = 0;
-  private currentShape: Shape | null = null;
-
-  // Data
   shapes: Shape[] = [];
   undoStack: Shape[][] = [];
   redoStack: Shape[][] = [];
 
-  // Settings
   selectedTool: ShapeType = 'rectangle';
   selectedColor: string = '#ff0000';
   fillAlpha = 0.3;
+
+  // Mouse state
+  private drawing = false;
+  private dragging = false;
+  private resizing = false;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
+  private selectedShapeIndex: number | null = null;
+  private selectedHandle: string | null = null;
+  private startX = 0;
+  private startY = 0;
+  private currentShape: Shape | null = null;
 
   ngAfterViewInit(): void {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
   }
 
-  // Load image
+  // Upload image
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -85,13 +84,38 @@ export class Imageeditor implements AfterViewInit {
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
-    // Check if user clicked existing shape for dragging
+    if (
+      this.selectedShapeIndex !== null &&
+      this.selectedShapeIndex >= 0 &&
+      this.selectedShapeIndex < this.shapes.length
+    ) {
+      const selected = this.shapes[this.selectedShapeIndex];
+      if (selected) {
+        const handle = this.getHandleAtPoint(selected, mouseX, mouseY);
+        if (handle) {
+          this.resizing = true;
+          this.selectedHandle = handle;
+          this.pushToUndo();
+          return;
+        }
+      }
+    }
+
+    // Check if clicking on resize handle
+    if (this.selectedShapeIndex !== null) {
+      const selected = this.shapes[this.selectedShapeIndex];
+      const handle = this.getHandleAtPoint(selected, mouseX, mouseY);
+      if (handle) {
+        this.resizing = true;
+        this.selectedHandle = handle;
+        this.pushToUndo();
+        return;
+      }
+    }
+
+    // Check if clicking inside an existing shape
     const clickedIndex = this.shapes.findIndex(
-      (s) =>
-        mouseX >= s.x &&
-        mouseX <= s.x + s.w &&
-        mouseY >= s.y &&
-        mouseY <= s.y + s.h
+      (s) => mouseX >= s.x && mouseX <= s.x + s.w && mouseY >= s.y && mouseY <= s.y + s.h
     );
 
     if (clickedIndex !== -1) {
@@ -101,6 +125,7 @@ export class Imageeditor implements AfterViewInit {
       this.dragOffsetX = mouseX - selected.x;
       this.dragOffsetY = mouseY - selected.y;
       this.pushToUndo();
+      this.redraw();
       return;
     }
 
@@ -124,10 +149,17 @@ export class Imageeditor implements AfterViewInit {
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
 
+    if (this.resizing && this.selectedShapeIndex !== null) {
+      const shape = this.shapes[this.selectedShapeIndex];
+      this.resizeShape(shape, mouseX, mouseY);
+      this.redraw();
+      return;
+    }
+
     if (this.dragging && this.selectedShapeIndex !== null) {
-      const selected = this.shapes[this.selectedShapeIndex];
-      selected.x = mouseX - this.dragOffsetX;
-      selected.y = mouseY - this.dragOffsetY;
+      const shape = this.shapes[this.selectedShapeIndex];
+      shape.x = mouseX - this.dragOffsetX;
+      shape.y = mouseY - this.dragOffsetY;
       this.redraw();
       return;
     }
@@ -140,9 +172,15 @@ export class Imageeditor implements AfterViewInit {
   }
 
   onMouseUp(): void {
+    if (this.resizing) {
+      this.resizing = false;
+      this.selectedHandle = null;
+      this.redraw();
+      return;
+    }
+
     if (this.dragging) {
       this.dragging = false;
-      this.selectedShapeIndex = null;
       this.redraw();
       return;
     }
@@ -162,35 +200,81 @@ export class Imageeditor implements AfterViewInit {
     }
   }
 
+  // Resize Logic
+  private resizeShape(shape: Shape, mouseX: number, mouseY: number): void {
+    const { x, y, w, h } = shape;
+    switch (this.selectedHandle) {
+      case 'tl': // top-left
+        shape.w = w + (x - mouseX);
+        shape.h = h + (y - mouseY);
+        shape.x = mouseX;
+        shape.y = mouseY;
+        break;
+      case 'tr': // top-right
+        shape.w = mouseX - x;
+        shape.h = h + (y - mouseY);
+        shape.y = mouseY;
+        break;
+      case 'bl': // bottom-left
+        shape.w = w + (x - mouseX);
+        shape.x = mouseX;
+        shape.h = mouseY - y;
+        break;
+      case 'br': // bottom-right
+        shape.w = mouseX - x;
+        shape.h = mouseY - y;
+        break;
+    }
+  }
+
+  private getHandleAtPoint(shape: Shape, x: number, y: number): string | null {
+    const size = 8;
+    const handles = {
+      tl: { x: shape.x, y: shape.y },
+      tr: { x: shape.x + shape.w, y: shape.y },
+      bl: { x: shape.x, y: shape.y + shape.h },
+      br: { x: shape.x + shape.w, y: shape.y + shape.h },
+    };
+
+    for (const [key, val] of Object.entries(handles)) {
+      if (x >= val.x - size && x <= val.x + size && y >= val.y - size && y <= val.y + size) {
+        return key;
+      }
+    }
+    return null;
+  }
+
   // Undo / Redo
   private pushToUndo(): void {
     this.undoStack.push(this.shapes.map((s) => ({ ...s })));
     this.redoStack = [];
   }
 
-  undo(): void {
-    if (this.undoStack.length === 0) return;
-    const prev = this.undoStack.pop()!;
-    this.redoStack.push(this.shapes.map((s) => ({ ...s })));
-    this.shapes = prev.map((s) => ({ ...s }));
-    this.redraw();
-  }
+undo(): void {
+  if (this.undoStack.length === 0) return;
+  const prev = this.undoStack.pop()!;
+  this.redoStack.push(this.shapes.map((s) => ({ ...s })));
+  this.shapes = prev.map((s) => ({ ...s }));
+  this.selectedShapeIndex = null; // ✅ reset selection
+  this.redraw();
+}
 
-  redo(): void {
-    if (this.redoStack.length === 0) return;
-    const next = this.redoStack.pop()!;
-    this.undoStack.push(this.shapes.map((s) => ({ ...s })));
-    this.shapes = next.map((s) => ({ ...s }));
-    this.redraw();
-  }
+redo(): void {
+  if (this.redoStack.length === 0) return;
+  const next = this.redoStack.pop()!;
+  this.undoStack.push(this.shapes.map((s) => ({ ...s })));
+  this.shapes = next.map((s) => ({ ...s }));
+  this.selectedShapeIndex = null; // ✅ reset selection
+  this.redraw();
+}
 
-  clear(): void {
-    this.pushToUndo();
-    this.shapes = [];
-    this.redraw();
-  }
+clear(): void {
+  this.pushToUndo();
+  this.shapes = [];
+  this.selectedShapeIndex = null; // ✅ reset selection
+  this.redraw();
+}
 
-  // Redraw everything
   private redraw(): void {
     if (!this.ctx || !this.imageLoaded) return;
     const canvas = this.canvasRef.nativeElement;
@@ -198,7 +282,7 @@ export class Imageeditor implements AfterViewInit {
     this.ctx.drawImage(this.img, 0, 0, canvas.width, canvas.height);
 
     this.shapes.forEach((s, i) => this.drawShape(s, i === this.selectedShapeIndex));
-    if (this.currentShape) this.drawShape(this.currentShape, false);
+    if (this.currentShape) this.drawShape(this.currentShape);
   }
 
   private drawShape(s: Shape, selected = false): void {
@@ -206,46 +290,35 @@ export class Imageeditor implements AfterViewInit {
     ctx.save();
     ctx.lineWidth = 2;
     ctx.strokeStyle = selected ? 'cyan' : s.color;
-    ctx.fillStyle =
-      s.type === 'hide'
-        ? 'rgba(0,0,0,0.9)'
-        : this.hexToRgba(s.color, this.fillAlpha);
+    ctx.fillStyle = s.type === 'hide' ? 'rgba(0,0,0,0.9)' : this.hexToRgba(s.color, this.fillAlpha);
 
-    switch (s.type) {
-      case 'rectangle':
-      case 'hide':
-        ctx.fillRect(s.x, s.y, s.w, s.h);
-        ctx.strokeRect(s.x, s.y, s.w, s.h);
-        break;
+    if (s.type === 'rectangle' || s.type === 'hide') {
+      ctx.fillRect(s.x, s.y, s.w, s.h);
+      ctx.strokeRect(s.x, s.y, s.w, s.h);
+    } else if (s.type === 'circle') {
+      ctx.beginPath();
+      ctx.ellipse(
+        s.x + s.w / 2,
+        s.y + s.h / 2,
+        Math.abs(s.w / 2),
+        Math.abs(s.h / 2),
+        0,
+        0,
+        2 * Math.PI
+      );
+      ctx.fill();
+      ctx.stroke();
+    } else if (s.type === 'line' || s.type === 'arrow') {
+      ctx.beginPath();
+      ctx.moveTo(s.x, s.y);
+      ctx.lineTo(s.x + s.w, s.y + s.h);
+      ctx.stroke();
 
-      case 'circle':
-        ctx.beginPath();
-        ctx.ellipse(
-          s.x + s.w / 2,
-          s.y + s.h / 2,
-          Math.abs(s.w / 2),
-          Math.abs(s.h / 2),
-          0,
-          0,
-          2 * Math.PI
-        );
-        ctx.fill();
-        ctx.stroke();
-        break;
-
-      case 'line':
-        ctx.beginPath();
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x + s.w, s.y + s.h);
-        ctx.stroke();
-        break;
-
-      case 'arrow':
-        ctx.beginPath();
+      if (s.type === 'arrow') {
         const headlen = 10;
         const angle = Math.atan2(s.h, s.w);
-        ctx.moveTo(s.x, s.y);
-        ctx.lineTo(s.x + s.w, s.y + s.h);
+        ctx.beginPath();
+        ctx.moveTo(s.x + s.w, s.y + s.h);
         ctx.lineTo(
           s.x + s.w - headlen * Math.cos(angle - Math.PI / 6),
           s.y + s.h - headlen * Math.sin(angle - Math.PI / 6)
@@ -256,9 +329,32 @@ export class Imageeditor implements AfterViewInit {
           s.y + s.h - headlen * Math.sin(angle + Math.PI / 6)
         );
         ctx.stroke();
-        break;
+      }
     }
+
+    if (selected && (s.type === 'rectangle' || s.type === 'hide' || s.type === 'circle')) {
+      this.drawHandles(s);
+    }
+
     ctx.restore();
+  }
+
+  private drawHandles(s: Shape): void {
+    const ctx = this.ctx;
+    const size = 6;
+    const handles = [
+      [s.x, s.y],
+      [s.x + s.w, s.y],
+      [s.x, s.y + s.h],
+      [s.x + s.w, s.y + s.h],
+    ];
+
+    ctx.fillStyle = 'white';
+    ctx.strokeStyle = 'black';
+    handles.forEach(([x, y]) => {
+      ctx.fillRect(x - size / 2, y - size / 2, size, size);
+      ctx.strokeRect(x - size / 2, y - size / 2, size, size);
+    });
   }
 
   private hexToRgba(hex: string, alpha: number): string {
@@ -269,7 +365,6 @@ export class Imageeditor implements AfterViewInit {
     return `rgba(${r},${g},${b},${alpha})`;
   }
 
-  // Save image
   saveImage(): void {
     const canvas = this.canvasRef.nativeElement;
     const link = document.createElement('a');
