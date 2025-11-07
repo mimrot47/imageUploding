@@ -23,6 +23,7 @@ interface Shape {
 export class Imageeditor implements AfterViewInit {
   @ViewChild('myCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
+
   private ctx!: CanvasRenderingContext2D;
   private img = new Image();
   imageLoaded = false;
@@ -50,6 +51,39 @@ export class Imageeditor implements AfterViewInit {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
   }
+  // 🔹 Handle paste (Ctrl + V)
+@HostListener('window:paste', ['$event'])
+onPaste(event: ClipboardEvent): void {
+  const items = event.clipboardData?.items;
+  if (!items) return;
+
+  for (const item of items) {
+    if (item.type.startsWith('image/')) {
+      const file = item.getAsFile();
+      if (file) {
+        this.loadImageFromFile(file);
+      }
+      event.preventDefault();
+      break;
+    }
+  }
+}
+
+// 🔹 Reusable function for both file input and clipboard
+private loadImageFromFile(file: File): void {
+  const reader = new FileReader();
+  reader.onload = () => {
+    this.img = new Image();
+    this.img.onload = () => {
+      this.imageLoaded = true;
+      this.resizeCanvasToImage(); // resize to laptop screen size
+      this.redraw();
+    };
+    this.img.src = reader.result as string;
+  };
+  reader.readAsDataURL(file);
+}
+
 
   // ⌨️ Listen for keyboard events globally
   @HostListener('window:keydown', ['$event'])
