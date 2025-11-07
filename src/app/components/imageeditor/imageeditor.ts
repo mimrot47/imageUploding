@@ -78,32 +78,20 @@ export class Imageeditor implements AfterViewInit {
   }
 
   // Mouse Events
-  onMouseDown(event: MouseEvent): void {
-    if (!this.imageLoaded) return;
-    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
+ onMouseDown(event: MouseEvent): void {
+  if (!this.imageLoaded) return;
+  const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+  const mouseX = event.clientX - rect.left;
+  const mouseY = event.clientY - rect.top;
 
-    if (
-      this.selectedShapeIndex !== null &&
-      this.selectedShapeIndex >= 0 &&
-      this.selectedShapeIndex < this.shapes.length
-    ) {
-      const selected = this.shapes[this.selectedShapeIndex];
-      if (selected) {
-        const handle = this.getHandleAtPoint(selected, mouseX, mouseY);
-        if (handle) {
-          this.resizing = true;
-          this.selectedHandle = handle;
-          this.pushToUndo();
-          return;
-        }
-      }
-    }
-
-    // Check if clicking on resize handle
-    if (this.selectedShapeIndex !== null) {
-      const selected = this.shapes[this.selectedShapeIndex];
+  // ✅ 1. First check if user clicked a resize handle
+  if (
+    this.selectedShapeIndex !== null &&
+    this.selectedShapeIndex >= 0 &&
+    this.selectedShapeIndex < this.shapes.length
+  ) {
+    const selected = this.shapes[this.selectedShapeIndex];
+    if (selected) {
       const handle = this.getHandleAtPoint(selected, mouseX, mouseY);
       if (handle) {
         this.resizing = true;
@@ -112,36 +100,46 @@ export class Imageeditor implements AfterViewInit {
         return;
       }
     }
-
-    // Check if clicking inside an existing shape
-    const clickedIndex = this.shapes.findIndex(
-      (s) => mouseX >= s.x && mouseX <= s.x + s.w && mouseY >= s.y && mouseY <= s.y + s.h
-    );
-
-    if (clickedIndex !== -1) {
-      this.selectedShapeIndex = clickedIndex;
-      const selected = this.shapes[clickedIndex];
-      this.dragging = true;
-      this.dragOffsetX = mouseX - selected.x;
-      this.dragOffsetY = mouseY - selected.y;
-      this.pushToUndo();
-      this.redraw();
-      return;
-    }
-
-    // Start new shape
-    this.drawing = true;
-    this.startX = mouseX;
-    this.startY = mouseY;
-    this.currentShape = {
-      type: this.selectedTool,
-      x: mouseX,
-      y: mouseY,
-      w: 0,
-      h: 0,
-      color: this.selectedColor,
-    };
   }
+
+  // ✅ 2. Then check if clicking inside an existing shape (for moving)
+  const clickedIndex = this.shapes.findIndex(
+    (s) =>
+      mouseX >= s.x &&
+      mouseX <= s.x + s.w &&
+      mouseY >= s.y &&
+      mouseY <= s.y + s.h
+  );
+
+  if (clickedIndex !== -1) {
+    this.selectedShapeIndex = clickedIndex;
+    const selected = this.shapes[clickedIndex];
+    this.dragging = true;
+    this.dragOffsetX = mouseX - selected.x;
+    this.dragOffsetY = mouseY - selected.y;
+    this.pushToUndo();
+    this.redraw();
+    return;
+  }
+
+  // ✅ 3. If clicked outside any shape → deselect
+  this.selectedShapeIndex = null;
+  this.redraw();
+
+  // ✅ 4. If drawing a new shape (based on selected tool)
+  this.drawing = true;
+  this.startX = mouseX;
+  this.startY = mouseY;
+  this.currentShape = {
+    type: this.selectedTool,
+    x: mouseX,
+    y: mouseY,
+    w: 0,
+    h: 0,
+    color: this.selectedColor,
+  };
+}
+
 
   onMouseMove(event: MouseEvent): void {
     if (!this.imageLoaded) return;
