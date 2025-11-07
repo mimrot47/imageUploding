@@ -1,4 +1,4 @@
-import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
+import { AfterViewInit, Component, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 
@@ -35,7 +35,6 @@ export class Imageeditor implements AfterViewInit {
   selectedColor: string = '#ff0000';
   fillAlpha = 0.3;
 
-  // Mouse state
   private drawing = false;
   private dragging = false;
   private resizing = false;
@@ -52,7 +51,35 @@ export class Imageeditor implements AfterViewInit {
     this.ctx = canvas.getContext('2d')!;
   }
 
-  // Upload image
+  // ⌨️ Listen for keyboard events globally
+  @HostListener('window:keydown', ['$event'])
+  handleKeyboard(event: KeyboardEvent): void {
+    if (event.ctrlKey && event.key.toLowerCase() === 'z') {
+      // Ctrl + Z
+      event.preventDefault();
+      this.undo();
+    } else if (event.ctrlKey && event.key.toLowerCase() === 'y') {
+      // Ctrl + Y
+      event.preventDefault();
+      this.redo();
+    } else if (event.key === 'Delete' || event.key === 'Backspace') {
+      // Delete selected shape
+      event.preventDefault();
+      this.deleteSelectedShape();
+    }
+  }
+
+  // 🗑️ Delete selected shape
+  deleteSelectedShape(): void {
+    if (this.selectedShapeIndex !== null && this.selectedShapeIndex >= 0) {
+      this.pushToUndo();
+      this.shapes.splice(this.selectedShapeIndex, 1);
+      this.selectedShapeIndex = null;
+      this.redraw();
+    }
+  }
+
+  // Upload Image
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -71,75 +98,95 @@ export class Imageeditor implements AfterViewInit {
     reader.readAsDataURL(file);
   }
 
-  private resizeCanvasToImage(): void {
-    const canvas = this.canvasRef.nativeElement;
-    canvas.width = this.img.width;
-    canvas.height = this.img.height;
-  }
+private resizeCanvasToImage(): void {
+  const canvas = this.canvasRef.nativeElement;
 
-  // Mouse Events
- onMouseDown(event: MouseEvent): void {
-  if (!this.imageLoaded) return;
-  const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-  const mouseX = event.clientX - rect.left;
-  const mouseY = event.clientY - rect.top;
+  // 🔹 Get available space (viewport size minus some padding)
+  const maxWidth = window.innerWidth * 0.9;  // 90% of screen width
+  const maxHeight = window.innerHeight * 0.8; // 80% of screen height
 
-  // ✅ 1. First check if user clicked a resize handle
-  if (
-    this.selectedShapeIndex !== null &&
-    this.selectedShapeIndex >= 0 &&
-    this.selectedShapeIndex < this.shapes.length
-  ) {
-    const selected = this.shapes[this.selectedShapeIndex];
-    if (selected) {
-      const handle = this.getHandleAtPoint(selected, mouseX, mouseY);
-      if (handle) {
-        this.resizing = true;
-        this.selectedHandle = handle;
-        this.pushToUndo();
-        return;
-      }
-    }
-  }
+  const imgWidth = this.img.width;
+  const imgHeight = this.img.height;
 
-  // ✅ 2. Then check if clicking inside an existing shape (for moving)
-  const clickedIndex = this.shapes.findIndex(
-    (s) =>
-      mouseX >= s.x &&
-      mouseX <= s.x + s.w &&
-      mouseY >= s.y &&
-      mouseY <= s.y + s.h
-  );
+  // 🔹 Maintain aspect ratio
+  let scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
 
-  if (clickedIndex !== -1) {
-    this.selectedShapeIndex = clickedIndex;
-    const selected = this.shapes[clickedIndex];
-    this.dragging = true;
-    this.dragOffsetX = mouseX - selected.x;
-    this.dragOffsetY = mouseY - selected.y;
-    this.pushToUndo();
-    this.redraw();
-    return;
-  }
+  const newWidth = imgWidth * scale;
+  const newHeight = imgHeight * scale;
 
-  // ✅ 3. If clicked outside any shape → deselect
-  this.selectedShapeIndex = null;
-  this.redraw();
+  // 🔹 Set canvas size
+  canvas.width = newWidth;
+  canvas.height = newHeight;
 
-  // ✅ 4. If drawing a new shape (based on selected tool)
-  this.drawing = true;
-  this.startX = mouseX;
-  this.startY = mouseY;
-  this.currentShape = {
-    type: this.selectedTool,
-    x: mouseX,
-    y: mouseY,
-    w: 0,
-    h: 0,
-    color: this.selectedColor,
-  };
+  // 🔹 Draw scaled image
+  const ctx = this.ctx;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(this.img, 0, 0, newWidth, newHeight);
 }
 
+
+  // 🖱️ Mouse Events
+  onMouseDown(event: MouseEvent): void {
+    if (!this.imageLoaded) return;
+    const rect = this.canvasRef.nativeElement.getBoundingClientRect();
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // 1️⃣ Check resize handle
+    if (
+      this.selectedShapeIndex !== null &&
+      this.selectedShapeIndex >= 0 &&
+      this.selectedShapeIndex < this.shapes.length
+    ) {
+      const selected = this.shapes[this.selectedShapeIndex];
+      if (selected) {
+        const handle = this.getHandleAtPoint(selected, mouseX, mouseY);
+        if (handle) {
+          this.resizing = true;
+          this.selectedHandle = handle;
+          this.pushToUndo();
+          return;
+        }
+      }
+    }
+
+    // 2️⃣ Check inside existing shape (move)
+    const clickedIndex = this.shapes.findIndex(
+      (s) =>
+        mouseX >= s.x &&
+        mouseX <= s.x + s.w &&
+        mouseY >= s.y &&
+        mouseY <= s.y + s.h
+    );
+
+    if (clickedIndex !== -1) {
+      this.selectedShapeIndex = clickedIndex;
+      const selected = this.shapes[clickedIndex];
+      this.dragging = true;
+      this.dragOffsetX = mouseX - selected.x;
+      this.dragOffsetY = mouseY - selected.y;
+      this.pushToUndo();
+      this.redraw();
+      return;
+    }
+
+    // 3️⃣ Deselect
+    this.selectedShapeIndex = null;
+    this.redraw();
+
+    // 4️⃣ Draw new shape
+    this.drawing = true;
+    this.startX = mouseX;
+    this.startY = mouseY;
+    this.currentShape = {
+      type: this.selectedTool,
+      x: mouseX,
+      y: mouseY,
+      w: 0,
+      h: 0,
+      color: this.selectedColor,
+    };
+  }
 
   onMouseMove(event: MouseEvent): void {
     if (!this.imageLoaded) return;
@@ -198,27 +245,26 @@ export class Imageeditor implements AfterViewInit {
     }
   }
 
-  // Resize Logic
   private resizeShape(shape: Shape, mouseX: number, mouseY: number): void {
     const { x, y, w, h } = shape;
     switch (this.selectedHandle) {
-      case 'tl': // top-left
+      case 'tl':
         shape.w = w + (x - mouseX);
         shape.h = h + (y - mouseY);
         shape.x = mouseX;
         shape.y = mouseY;
         break;
-      case 'tr': // top-right
+      case 'tr':
         shape.w = mouseX - x;
         shape.h = h + (y - mouseY);
         shape.y = mouseY;
         break;
-      case 'bl': // bottom-left
+      case 'bl':
         shape.w = w + (x - mouseX);
         shape.x = mouseX;
         shape.h = mouseY - y;
         break;
-      case 'br': // bottom-right
+      case 'br':
         shape.w = mouseX - x;
         shape.h = mouseY - y;
         break;
@@ -235,43 +281,47 @@ export class Imageeditor implements AfterViewInit {
     };
 
     for (const [key, val] of Object.entries(handles)) {
-      if (x >= val.x - size && x <= val.x + size && y >= val.y - size && y <= val.y + size) {
+      if (
+        x >= val.x - size &&
+        x <= val.x + size &&
+        y >= val.y - size &&
+        y <= val.y + size
+      ) {
         return key;
       }
     }
     return null;
   }
 
-  // Undo / Redo
   private pushToUndo(): void {
     this.undoStack.push(this.shapes.map((s) => ({ ...s })));
     this.redoStack = [];
   }
 
-undo(): void {
-  if (this.undoStack.length === 0) return;
-  const prev = this.undoStack.pop()!;
-  this.redoStack.push(this.shapes.map((s) => ({ ...s })));
-  this.shapes = prev.map((s) => ({ ...s }));
-  this.selectedShapeIndex = null; // ✅ reset selection
-  this.redraw();
-}
+  undo(): void {
+    if (this.undoStack.length === 0) return;
+    const prev = this.undoStack.pop()!;
+    this.redoStack.push(this.shapes.map((s) => ({ ...s })));
+    this.shapes = prev.map((s) => ({ ...s }));
+    this.selectedShapeIndex = null;
+    this.redraw();
+  }
 
-redo(): void {
-  if (this.redoStack.length === 0) return;
-  const next = this.redoStack.pop()!;
-  this.undoStack.push(this.shapes.map((s) => ({ ...s })));
-  this.shapes = next.map((s) => ({ ...s }));
-  this.selectedShapeIndex = null; // ✅ reset selection
-  this.redraw();
-}
+  redo(): void {
+    if (this.redoStack.length === 0) return;
+    const next = this.redoStack.pop()!;
+    this.undoStack.push(this.shapes.map((s) => ({ ...s })));
+    this.shapes = next.map((s) => ({ ...s }));
+    this.selectedShapeIndex = null;
+    this.redraw();
+  }
 
-clear(): void {
-  this.pushToUndo();
-  this.shapes = [];
-  this.selectedShapeIndex = null; // ✅ reset selection
-  this.redraw();
-}
+  clear(): void {
+    this.pushToUndo();
+    this.shapes = [];
+    this.selectedShapeIndex = null;
+    this.redraw();
+  }
 
   private redraw(): void {
     if (!this.ctx || !this.imageLoaded) return;
@@ -288,7 +338,10 @@ clear(): void {
     ctx.save();
     ctx.lineWidth = 2;
     ctx.strokeStyle = selected ? 'cyan' : s.color;
-    ctx.fillStyle = s.type === 'hide' ? 'rgba(0,0,0,0.9)' : this.hexToRgba(s.color, this.fillAlpha);
+    ctx.fillStyle =
+      s.type === 'hide'
+        ? 'rgba(0,0,0,0.9)'
+        : this.hexToRgba(s.color, this.fillAlpha);
 
     if (s.type === 'rectangle' || s.type === 'hide') {
       ctx.fillRect(s.x, s.y, s.w, s.h);
@@ -330,7 +383,10 @@ clear(): void {
       }
     }
 
-    if (selected && (s.type === 'rectangle' || s.type === 'hide' || s.type === 'circle')) {
+    if (
+      selected &&
+      (s.type === 'rectangle' || s.type === 'hide' || s.type === 'circle')
+    ) {
       this.drawHandles(s);
     }
 
