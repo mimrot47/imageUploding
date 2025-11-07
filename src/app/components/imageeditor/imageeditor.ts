@@ -1,6 +1,6 @@
 import { AfterViewInit, Component, ElementRef, ViewChild } from '@angular/core';
-import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 
 interface Rect {
   x: number;
@@ -22,13 +22,18 @@ export class Imageeditor implements AfterViewInit {
   private ctx!: CanvasRenderingContext2D;
   private img = new Image();
   private drawing = false;
+  private dragging = false;
+  private dragOffsetX = 0;
+  private dragOffsetY = 0;
+  private selectedRectIndex: number | null = null;
+
   private startX = 0;
   private startY = 0;
   private currentRect: Rect | null = null;
 
-  rects: Rect[] = [];           // current rectangles
-  undoStack: Rect[][] = [];     // for undo
-  redoStack: Rect[][] = [];     // for redo
+  rects: Rect[] = [];
+  undoStack: Rect[][] = [];
+  redoStack: Rect[][] = [];
   rectAlpha = 0.25;
 
   imageLoaded = false;
@@ -38,7 +43,7 @@ export class Imageeditor implements AfterViewInit {
     this.ctx = canvas.getContext('2d')!;
   }
 
-  // 📸 Upload an image
+  // 📸 Upload image
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
@@ -63,62 +68,107 @@ export class Imageeditor implements AfterViewInit {
     canvas.height = this.img.height;
   }
 
-  // 🎨 Drawing logic
+  // 🎨 Mouse Events
   onMouseDown(event: MouseEvent): void {
     if (!this.imageLoaded) return;
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    this.startX = event.clientX - rect.left;
-    this.startY = event.clientY - rect.top;
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
+
+    // Check if clicking inside an existing rect (for move)
+    const clickedIndex = this.rects.findIndex(
+      (r) =>
+        mouseX >= r.x &&
+        mouseX <= r.x + r.w &&
+        mouseY >= r.y &&
+        mouseY <= r.y + r.h
+    );
+
+    if (clickedIndex !== -1) {
+      // Start dragging existing rectangle
+      this.selectedRectIndex = clickedIndex;
+      const selectedRect = this.rects[clickedIndex];
+      this.dragging = true;
+      this.dragOffsetX = mouseX - selectedRect.x;
+      this.dragOffsetY = mouseY - selectedRect.y;
+      this.pushToUndo();
+      return;
+    }
+
+    // Otherwise start drawing new rectangle
     this.drawing = true;
-    this.currentRect = { x: this.startX, y: this.startY, w: 0, h: 0 };
+    this.startX = mouseX;
+    this.startY = mouseY;
+    this.currentRect = { x: mouseX, y: mouseY, w: 0, h: 0 };
   }
 
   onMouseMove(event: MouseEvent): void {
-    if (!this.drawing || !this.imageLoaded) return;
+    if (!this.imageLoaded) return;
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
-    const x = event.clientX - rect.left;
-    const y = event.clientY - rect.top;
-    const w = x - this.startX;
-    const h = y - this.startY;
+    const mouseX = event.clientX - rect.left;
+    const mouseY = event.clientY - rect.top;
 
-    this.currentRect = {
-      x: w < 0 ? x : this.startX,
-      y: h < 0 ? y : this.startY,
-      w: Math.abs(w),
-      h: Math.abs(h),
-    };
-    this.redraw();
+    // Moving existing rectangle
+    if (this.dragging && this.selectedRectIndex !== null) {
+      const selected = this.rects[this.selectedRectIndex];
+      selected.x = mouseX - this.dragOffsetX;
+      selected.y = mouseY - this.dragOffsetY;
+      this.redraw();
+      return;
+    }
+
+    // Drawing new rectangle
+    if (this.drawing) {
+      const w = mouseX - this.startX;
+      const h = mouseY - this.startY;
+      this.currentRect = {
+        x: w < 0 ? mouseX : this.startX,
+        y: h < 0 ? mouseY : this.startY,
+        w: Math.abs(w),
+        h: Math.abs(h),
+      };
+      this.redraw();
+    }
   }
 
   onMouseUp(): void {
-    if (!this.drawing) return;
-    this.drawing = false;
-    if (this.currentRect && this.currentRect.w > 2 && this.currentRect.h > 2) {
-      this.pushToUndo(); // save current state for undo
-      this.rects.push(this.currentRect);
+    if (this.dragging) {
+      this.dragging = false;
+      this.selectedRectIndex = null;
+      this.redraw();
+      return;
     }
-    this.currentRect = null;
-    this.redraw();
+
+    if (this.drawing) {
+      this.drawing = false;
+      if (this.currentRect && this.currentRect.w > 2 && this.currentRect.h > 2) {
+        this.pushToUndo();
+        this.rects.push(this.currentRect);
+      }
+      this.currentRect = null;
+      this.redraw();
+    }
   }
 
+  // 🔁 Undo / Redo
   private pushToUndo(): void {
-    this.undoStack.push([...this.rects]);
-    this.redoStack = []; // clear redo when new change happens
+    this.undoStack.push(this.rects.map(r => ({ ...r })));
+    this.redoStack = [];
   }
 
   undo(): void {
     if (this.undoStack.length === 0) return;
     const prev = this.undoStack.pop()!;
-    this.redoStack.push([...this.rects]);
-    this.rects = [...prev];
+    this.redoStack.push(this.rects.map(r => ({ ...r })));
+    this.rects = prev.map(r => ({ ...r }));
     this.redraw();
   }
 
   redo(): void {
     if (this.redoStack.length === 0) return;
     const next = this.redoStack.pop()!;
-    this.undoStack.push([...this.rects]);
-    this.rects = [...next];
+    this.undoStack.push(this.rects.map(r => ({ ...r })));
+    this.rects = next.map(r => ({ ...r }));
     this.redraw();
   }
 
@@ -136,14 +186,16 @@ export class Imageeditor implements AfterViewInit {
     this.ctx.clearRect(0, 0, canvas.width, canvas.height);
     this.ctx.drawImage(this.img, 0, 0, canvas.width, canvas.height);
 
-    for (const r of this.rects) this.drawRect(r);
+    this.rects.forEach((r, i) => this.drawRect(r, i === this.selectedRectIndex));
     if (this.currentRect) this.drawRect(this.currentRect);
   }
 
-  private drawRect(r: Rect): void {
-    this.ctx.fillStyle = `rgba(255,200,0,${this.rectAlpha})`;
+  private drawRect(r: Rect, selected = false): void {
+    this.ctx.fillStyle = selected
+      ? `rgba(0,255,255,${this.rectAlpha})`
+      : `rgba(255,200,0,${this.rectAlpha})`;
     this.ctx.fillRect(r.x, r.y, r.w, r.h);
-    this.ctx.strokeStyle = 'red';
+    this.ctx.strokeStyle = selected ? 'cyan' : 'red';
     this.ctx.lineWidth = 2;
     this.ctx.strokeRect(r.x, r.y, r.w, r.h);
   }
