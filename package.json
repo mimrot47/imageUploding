@@ -33,6 +33,7 @@
     "@types/gapi": "^0.0.47",
     "@types/gapi.client.drive": "^3.0.15",
     "fabric": "^6.7.1",
+    "gapi-script": "^1.2.0",
     "googleapis": "^164.1.0",
     "konva": "^10.0.8",
     "rxjs": "~7.8.0",

@@ -22,7 +22,11 @@ interface Shape {
 })
 export class Imageeditor implements AfterViewInit {
   @ViewChild('myCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
+  private CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
+  private API_KEY = 'YOUR_GOOGLE_API_KEY'; // Optional for Drive v3
+  private SCOPES = 'https://www.googleapis.com/auth/drive.file';
 
+private gapiLoaded = false;
 
   private ctx!: CanvasRenderingContext2D;
   private img = new Image();
@@ -46,6 +50,7 @@ export class Imageeditor implements AfterViewInit {
   private startX = 0;
   private startY = 0;
   private currentShape: Shape | null = null;
+
 
   ngAfterViewInit(): void {
     const canvas = this.canvasRef.nativeElement;

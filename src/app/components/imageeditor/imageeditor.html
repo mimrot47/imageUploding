@@ -15,6 +15,7 @@
       <option value="hide">Hide (Black Box)</option>
     </select>
   </div>
+  <p class="hint">💡 You can also press <b>Ctrl + V</b> to paste an image from clipboard!</p>
 
   <div class="buttons" *ngIf="imageLoaded">
     <button (click)="undo()" [disabled]="undoStack.length === 0">Undo</button>
