@@ -1,6 +1,15 @@
 import { AfterViewInit, Component, ElementRef, ViewChild, HostListener } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
+import { MatSelectModule } from '@angular/material/select';
+import { MatInputModule } from '@angular/material/input';
+import { MatIconModule } from '@angular/material/icon';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import {MatToolbarModule} from '@angular/material/toolbar';
+import { MaterialFileInputModule } from 'ngx-material-file-input';
 
 type ShapeType = 'rectangle' | 'circle' | 'line' | 'arrow' | 'hide';
 
@@ -16,7 +25,7 @@ interface Shape {
 @Component({
   selector: 'app-imageeditor',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [CommonModule, FormsModule,MatButtonModule,MatSelectModule,MatInputModule,MatIconModule,MatFormFieldModule,MatTooltipModule,MatSnackBarModule,MatToolbarModule],
   templateUrl: './imageeditor.html',
   styleUrl: './imageeditor.css',
 })

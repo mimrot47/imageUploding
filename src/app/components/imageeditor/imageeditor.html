@@ -1,29 +1,51 @@
-<div class="editor-container">
-  <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button>
-
-  <div class="controls">
-    <input type="file" accept="image/*" (change)="onFileSelected($event)" />
-    <label>
-      Color:
-      <input type="color" [(ngModel)]="selectedColor" />
-    </label>
-    <select [(ngModel)]="selectedTool">
-      <option value="rectangle">Rectangle</option>
+<mat-toolbar style="background-color: rgb(153, 189, 218);">
+  <button matIconButton class="example-icon" aria-label="Example icon-button with menu icon">
+    <mat-icon>menu</mat-icon>
+  </button>
+  <span>My App</span>
+  <span class="example-spacer"></span>
+    <input type="color" [(ngModel)]="selectedColor" />
+    <mat-form-field>
+  <select matNativeControl [(ngModel)]="selectedTool">
+    <option value="rectangle">Rectangle</option>
       <option value="circle">Circle</option>
       <option value="line">Line</option>
       <option value="arrow">Arrow</option>
       <option value="hide">Hide (Black Box)</option>
-    </select>
-  </div>
-  <div class="buttons" *ngIf="imageLoaded">
-    <button (click)="undo()" [disabled]="undoStack.length === 0">Undo</button>
-    <button (click)="redo()" [disabled]="redoStack.length === 0">Redo</button>
-    <button (click)="clear()" [disabled]="shapes.length === 0">Clear</button>
-    <button (click)="uploadToGoogleDrive()">Save</button>
-    <button (click)="saveImage()">Save</button>
+  </select>
+</mat-form-field>
+  @if(imageLoaded){
+ <button matIconButton (click)="undo()" [disabled]="undoStack.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
+    <mat-icon>undo</mat-icon>
+  </button>
+  <button matIconButton (click)="redo()" [disabled]="redoStack.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
+    <mat-icon>redo</mat-icon>
+  </button>
+  <button matIconButton (click)="clear()" [disabled]="shapes.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
+    <mat-icon>clear</mat-icon>
+  </button>
+   <button matIconButton (click)="saveImage()" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
+    <mat-icon>cloud_download</mat-icon>
+  </button>
+  <button matIconButton (click)="uploadToGoogleDrive()" class="example-icon" aria-label="Example icon-button with share icon">
+    <mat-icon>share</mat-icon>
+  </button>
+  <button matIconButton *ngIf="lastUploadedLink" (click)="copyLink()" class="example-icon" aria-label="Example icon-button with share icon">
+    <mat-icon>copy</mat-icon>
+  </button>
+ }
+</mat-toolbar>
+<div class="editor-container">
+  <!-- <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button> -->
+
+  <div class="controls">
+    <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+
   </div>
 
+
+
   <!-- Canvas -->
-  <canvas #myCanvas width="800" height="500" style="border:1px solid black;" (mousedown)="onMouseDown($event)"
+  <canvas #myCanvas width="400" height="200" style="border:1px solid black;" (mousedown)="onMouseDown($event)"
     (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()"></canvas>
 </div>
