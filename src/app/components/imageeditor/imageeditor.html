@@ -30,6 +30,9 @@
   <button matIconButton *ngIf="lastUploadedLink" (click)="copyLink()" class="example-icon" aria-label="Example icon-button with share icon">
     <mat-icon>copy</mat-icon>
   </button>
+   <button mat-icon-button (click)="deleteImage()" matTooltip="Delete Image">
+      <mat-icon>delete</mat-icon>
+    </button>
  }
 </mat-toolbar>
 <div class="editor-container">

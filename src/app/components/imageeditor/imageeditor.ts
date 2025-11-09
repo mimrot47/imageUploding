@@ -614,4 +614,24 @@ private resizeCanvasToImage(): void {
     link.href = canvas.toDataURL('image/png');
     link.click();
   }
+
+  deleteImage(): void {
+  if (!this.imageLoaded) return;
+
+  const canvas = this.canvasRef.nativeElement;
+  const ctx = canvas.getContext('2d');
+  if (ctx) {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+  }
+
+  // Reset all editor state
+  this.imageLoaded = false;
+  this.shapes = [];
+  this.undoStack = [];
+  this.redoStack = [];
+  this.lastUploadedLink = null;
+  this.img = new Image();
+
+  console.log('🗑️ Image deleted from canvas.');
+}
 }
