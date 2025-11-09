@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import {MatToolbarModule} from '@angular/material/toolbar';
+import { MatToolbarModule } from '@angular/material/toolbar';
 import { MaterialFileInputModule } from 'ngx-material-file-input';
 
 type ShapeType = 'rectangle' | 'circle' | 'line' | 'arrow' | 'hide';
@@ -25,7 +25,18 @@ interface Shape {
 @Component({
   selector: 'app-imageeditor',
   standalone: true,
-  imports: [CommonModule, FormsModule,MatButtonModule,MatSelectModule,MatInputModule,MatIconModule,MatFormFieldModule,MatTooltipModule,MatSnackBarModule,MatToolbarModule],
+  imports: [
+    CommonModule,
+    FormsModule,
+    MatButtonModule,
+    MatSelectModule,
+    MatInputModule,
+    MatIconModule,
+    MatFormFieldModule,
+    MatTooltipModule,
+    MatSnackBarModule,
+    MatToolbarModule,
+  ],
   templateUrl: './imageeditor.html',
   styleUrl: './imageeditor.css',
 })
@@ -35,8 +46,10 @@ export class Imageeditor implements AfterViewInit {
   private API_KEY = 'AIzaSyAZ9jPeATDM0Qdzi4ghjRXfzioskCoT0xI'; // Optional for Drive v3
   private SCOPES = 'https://www.googleapis.com/auth/drive.file';
   private accessToken: string | null = null;
+  public imageName: string = '';
+  originalFileName: string | null = null;
 
-private gapiLoaded = false;
+  private gapiLoaded = false;
 
   private ctx!: CanvasRenderingContext2D;
   private img = new Image();
@@ -62,147 +75,151 @@ private gapiLoaded = false;
   private startY = 0;
   private currentShape: Shape | null = null;
 
-
   ngAfterViewInit(): void {
     const canvas = this.canvasRef.nativeElement;
     this.ctx = canvas.getContext('2d')!;
   }
   // 🔹 Handle paste (Ctrl + V)
-@HostListener('window:paste', ['$event'])
-onPaste(event: ClipboardEvent): void {
-  const items = event.clipboardData?.items;
-  if (!items) return;
+  @HostListener('window:paste', ['$event'])
+  onPaste(event: ClipboardEvent): void {
+    const items = event.clipboardData?.items;
+    if (!items) return;
 
-  for (const item of items) {
-    if (item.type.startsWith('image/')) {
-      const file = item.getAsFile();
-      if (file) {
-        this.loadImageFromFile(file);
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          this.originalFileName = file.name || 'pasted-image.png';
+          this.imageName = this.originalFileName.replace(/\.[^/.]+$/, "");
+          console.log(this.originalFileName);
+          this.loadImageFromFile(file);
+        }
+        event.preventDefault();
+        break;
       }
-      event.preventDefault();
-      break;
     }
   }
-}
 
-
-
-// Initialize gapi client and GIS token client
-async initGoogleAPI() {
-  return new Promise<void>((resolve, reject) => {
-    const g = (window as any);
-    if (!g.gapi) {
-      return reject('Google API not loaded');
-    }
-
-    g.gapi.load('client', async () => {
-      try {
-        await g.gapi.client.init({
-          apiKey: this.API_KEY,
-          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
-        });
-
-        // Initialize the new GIS client
-        this.initTokenClient();
-        resolve();
-      } catch (e) {
-        reject(e);
+  // Initialize gapi client and GIS token client
+  async initGoogleAPI() {
+    return new Promise<void>((resolve, reject) => {
+      const g = window as any;
+      if (!g.gapi) {
+        return reject('Google API not loaded');
       }
+
+      g.gapi.load('client', async () => {
+        try {
+          await g.gapi.client.init({
+            apiKey: this.API_KEY,
+            discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+          });
+
+          // Initialize the new GIS client
+          this.initTokenClient();
+          resolve();
+        } catch (e) {
+          reject(e);
+        }
+      });
     });
-  });
-}
-
-private tokenClient: any;
-
-initTokenClient() {
-  const google = (window as any).google;
-  this.tokenClient = google.accounts.oauth2.initTokenClient({
-    client_id: this.CLIENT_ID,
-    scope: this.SCOPES,
-    callback: (response: any) => {
-      if (response && response.access_token) {
-        this.accessToken = response.access_token;
-        this.finishUploadToDrive();
-      }
-    },
-  });
-}
-
-async uploadToGoogleDrive(): Promise<void> {
-  if (!this.accessToken) {
-    await this.initGoogleAPI();
-    // Prompt user to sign in and grant access
-    this.tokenClient.requestAccessToken({ prompt: 'consent' });
-  } else {
-    this.finishUploadToDrive();
-  }
-}
-
-private async finishUploadToDrive() {
-
-  if (!this.accessToken) {
-    alert('⚠️ No access token found.');
-    return;
   }
 
-  const canvas = this.canvasRef.nativeElement;
-  const blob = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob((b) => (b ? resolve(b) : reject('Failed to convert to Blob')), 'image/png');
-  });
+  private tokenClient: any;
 
-  const metadata = {
-    name: `annotated-${Date.now()}.png`,
-    mimeType: 'image/png',
-  };
+  initTokenClient() {
+    const google = (window as any).google;
+    this.tokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: this.CLIENT_ID,
+      scope: this.SCOPES,
+      callback: (response: any) => {
+        if (response && response.access_token) {
+          this.accessToken = response.access_token;
+          this.finishUploadToDrive();
+        }
+      },
+    });
+  }
 
-  const form = new FormData();
-  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-  form.append('file', blob);
+  async uploadToGoogleDrive(): Promise<void> {
+    if (!this.accessToken) {
+      await this.initGoogleAPI();
+      // Prompt user to sign in and grant access
+      this.tokenClient.requestAccessToken({ prompt: 'consent' });
+    } else {
+      this.finishUploadToDrive();
+    }
+  }
 
-  // Upload file
-  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
-    method: 'POST',
-    headers: new Headers({ Authorization: 'Bearer ' + this.accessToken }),
-    body: form,
-  });
+  private async finishUploadToDrive() {
+    if (!this.accessToken) {
+      alert('⚠️ No access token found.');
+      return;
+    }
 
-  const file = await res.json();
+    const canvas = this.canvasRef.nativeElement;
+    const blob = await new Promise<Blob>((resolve, reject) => {
+      canvas.toBlob((b) => (b ? resolve(b) : reject('Failed to convert to Blob')), 'image/png');
+    });
 
-  // Make file public
-  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
-  method: 'POST',
-  headers: new Headers({
-    Authorization: 'Bearer ' + this.accessToken,
-    'Content-Type': 'application/json',
-  }),
-  body: JSON.stringify({ role: 'reader', type: 'anyone' }),
-});
-
-// Build direct-view URL
-const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
-this.lastUploadedLink = publicUrl;
-// Copy link to clipboard
-await navigator.clipboard.writeText(publicUrl);
-
-// Show toast message instead of alert
-this.showToast('✅ Link copied to clipboard!');
-
-}
-// 🔹 Reusable function for both file input and clipboard
-private loadImageFromFile(file: File): void {
-  const reader = new FileReader();
-  reader.onload = () => {
-    this.img = new Image();
-    this.img.onload = () => {
-      this.imageLoaded = true;
-      this.resizeCanvasToImage(); // resize to laptop screen size
-      this.redraw();
+    const safeName = this.imageName?.trim() || `annotated-${Date.now()}`;
+    const metadata = {
+      name: this.originalFileName || 'annotated-image.png',
+      mimeType: 'image/png',
     };
-    this.img.src = reader.result as string;
-  };
-  reader.readAsDataURL(file);
-}
 
+    const form = new FormData();
+    form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+    form.append('file', blob);
+
+    // Upload file
+    const res = await fetch(
+      'https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart',
+      {
+        method: 'POST',
+        headers: new Headers({ Authorization: 'Bearer ' + this.accessToken }),
+        body: form,
+      }
+    );
+
+    const file = await res.json();
+
+    // Make file public
+    await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+      method: 'POST',
+      headers: new Headers({
+        Authorization: 'Bearer ' + this.accessToken,
+        'Content-Type': 'application/json',
+      }),
+      body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+    });
+
+    // Build direct-view URL
+    const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
+    this.lastUploadedLink = publicUrl;
+    // Copy link to clipboard
+    await navigator.clipboard.writeText(publicUrl);
+
+    // Show toast message instead of alert
+    this.showToast('✅ Link copied to clipboard!');
+  }
+  // 🔹 Reusable function for both file input and clipboard
+  private loadImageFromFile(file: File): void {
+    this.originalFileName = file.name;
+    this.imageName = file.name.replace(/\.[^/.]+$/, "");
+    console.log(this.originalFileName); // remove file extension
+    const reader = new FileReader();
+    reader.onload = () => {
+      this.img = new Image();
+      this.img.onload = () => {
+        this.imageLoaded = true;
+        this.resizeCanvasToImage(); // resize to laptop screen size
+        this.redraw();
+      };
+      this.img.src = reader.result as string;
+    };
+    reader.readAsDataURL(file);
+  }
 
   // ⌨️ Listen for keyboard events globally
   @HostListener('window:keydown', ['$event'])
@@ -233,18 +250,19 @@ private loadImageFromFile(file: File): void {
   }
 
   copyLink() {
-  if (this.lastUploadedLink) {
-    navigator.clipboard.writeText(this.lastUploadedLink);
-    this.showToast('🔗 Link copied again!');
+    if (this.lastUploadedLink) {
+      navigator.clipboard.writeText(this.lastUploadedLink);
+      this.showToast('🔗 Link copied again!');
+    }
   }
-}
 
   // Upload Image
   onFileSelected(event: Event): void {
     const input = event.target as HTMLInputElement;
     const file = input.files?.[0];
     if (!file) return;
-
+    this.originalFileName = file.name;
+    console.log(this.originalFileName);
     const reader = new FileReader();
     reader.onload = () => {
       this.img = new Image();
@@ -258,32 +276,31 @@ private loadImageFromFile(file: File): void {
     reader.readAsDataURL(file);
   }
 
-private resizeCanvasToImage(): void {
-  const canvas = this.canvasRef.nativeElement;
+  private resizeCanvasToImage(): void {
+    const canvas = this.canvasRef.nativeElement;
 
-  // 🔹 Get available space (viewport size minus some padding)
-  const maxWidth = window.innerWidth * 0.9;  // 90% of screen width
-  const maxHeight = window.innerHeight * 0.8; // 80% of screen height
+    // 🔹 Get available space (viewport size minus some padding)
+    const maxWidth = window.innerWidth * 0.9; // 90% of screen width
+    const maxHeight = window.innerHeight * 0.8; // 80% of screen height
 
-  const imgWidth = this.img.width;
-  const imgHeight = this.img.height;
+    const imgWidth = this.img.width;
+    const imgHeight = this.img.height;
 
-  // 🔹 Maintain aspect ratio
-  let scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
+    // 🔹 Maintain aspect ratio
+    let scale = Math.min(maxWidth / imgWidth, maxHeight / imgHeight, 1);
 
-  const newWidth = imgWidth * scale;
-  const newHeight = imgHeight * scale;
+    const newWidth = imgWidth * scale;
+    const newHeight = imgHeight * scale;
 
-  // 🔹 Set canvas size
-  canvas.width = newWidth;
-  canvas.height = newHeight;
+    // 🔹 Set canvas size
+    canvas.width = newWidth;
+    canvas.height = newHeight;
 
-  // 🔹 Draw scaled image
-  const ctx = this.ctx;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(this.img, 0, 0, newWidth, newHeight);
-}
-
+    // 🔹 Draw scaled image
+    const ctx = this.ctx;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.drawImage(this.img, 0, 0, newWidth, newHeight);
+  }
 
   // 🖱️ Mouse Events
   onMouseDown(event: MouseEvent): void {
@@ -312,11 +329,7 @@ private resizeCanvasToImage(): void {
 
     // 2️⃣ Check inside existing shape (move)
     const clickedIndex = this.shapes.findIndex(
-      (s) =>
-        mouseX >= s.x &&
-        mouseX <= s.x + s.w &&
-        mouseY >= s.y &&
-        mouseY <= s.y + s.h
+      (s) => mouseX >= s.x && mouseX <= s.x + s.w && mouseY >= s.y && mouseY <= s.y + s.h
     );
 
     if (clickedIndex !== -1) {
@@ -348,33 +361,33 @@ private resizeCanvasToImage(): void {
     };
   }
   showToast(message: string) {
-  const toast = document.createElement('div');
-  toast.textContent = message;
-  toast.style.position = 'fixed';
-  toast.style.bottom = '20px';
-  toast.style.left = '50%';
-  toast.style.transform = 'translateX(-50%)';
-  toast.style.background = '#333';
-  toast.style.color = '#fff';
-  toast.style.padding = '10px 20px';
-  toast.style.borderRadius = '8px';
-  toast.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
-  toast.style.fontSize = '14px';
-  toast.style.zIndex = '9999';
-  toast.style.opacity = '0';
-  toast.style.transition = 'opacity 0.3s ease';
-
-  document.body.appendChild(toast);
-
-  // Animate in
-  requestAnimationFrame(() => (toast.style.opacity = '1'));
-
-  // Remove after 3 seconds
-  setTimeout(() => {
+    const toast = document.createElement('div');
+    toast.textContent = message;
+    toast.style.position = 'fixed';
+    toast.style.bottom = '20px';
+    toast.style.left = '50%';
+    toast.style.transform = 'translateX(-50%)';
+    toast.style.background = '#333';
+    toast.style.color = '#fff';
+    toast.style.padding = '10px 20px';
+    toast.style.borderRadius = '8px';
+    toast.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+    toast.style.fontSize = '14px';
+    toast.style.zIndex = '9999';
     toast.style.opacity = '0';
-    setTimeout(() => toast.remove(), 300);
-  }, 3000);
-}
+    toast.style.transition = 'opacity 0.3s ease';
+
+    document.body.appendChild(toast);
+
+    // Animate in
+    requestAnimationFrame(() => (toast.style.opacity = '1'));
+
+    // Remove after 3 seconds
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
 
   onMouseMove(event: MouseEvent): void {
     if (!this.imageLoaded) return;
@@ -469,12 +482,7 @@ private resizeCanvasToImage(): void {
     };
 
     for (const [key, val] of Object.entries(handles)) {
-      if (
-        x >= val.x - size &&
-        x <= val.x + size &&
-        y >= val.y - size &&
-        y <= val.y + size
-      ) {
+      if (x >= val.x - size && x <= val.x + size && y >= val.y - size && y <= val.y + size) {
         return key;
       }
     }
@@ -526,10 +534,7 @@ private resizeCanvasToImage(): void {
     ctx.save();
     ctx.lineWidth = 2;
     ctx.strokeStyle = selected ? 'cyan' : s.color;
-    ctx.fillStyle =
-      s.type === 'hide'
-        ? 'rgba(0,0,0,0.9)'
-        : this.hexToRgba(s.color, this.fillAlpha);
+    ctx.fillStyle = s.type === 'hide' ? 'rgba(0,0,0,0.9)' : this.hexToRgba(s.color, this.fillAlpha);
 
     if (s.type === 'rectangle' || s.type === 'hide') {
       ctx.fillRect(s.x, s.y, s.w, s.h);
@@ -571,10 +576,7 @@ private resizeCanvasToImage(): void {
       }
     }
 
-    if (
-      selected &&
-      (s.type === 'rectangle' || s.type === 'hide' || s.type === 'circle')
-    ) {
+    if (selected && (s.type === 'rectangle' || s.type === 'hide' || s.type === 'circle')) {
       this.drawHandles(s);
     }
 
@@ -610,28 +612,30 @@ private resizeCanvasToImage(): void {
   saveImage(): void {
     const canvas = this.canvasRef.nativeElement;
     const link = document.createElement('a');
-    link.download = 'ALImage-image.png';
+    const safeName = this.originalFileName?.trim() || 'annotated-image';
+    link.download = `${safeName}.png`;
     link.href = canvas.toDataURL('image/png');
     link.click();
+    this.showToast(`💾 Saved as ${safeName}.png`);
   }
 
   deleteImage(): void {
-  if (!this.imageLoaded) return;
+    if (!this.imageLoaded) return;
 
-  const canvas = this.canvasRef.nativeElement;
-  const ctx = canvas.getContext('2d');
-  if (ctx) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    const canvas = this.canvasRef.nativeElement;
+    const ctx = canvas.getContext('2d');
+    if (ctx) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    }
+
+    // Reset all editor state
+    this.imageLoaded = false;
+    this.shapes = [];
+    this.undoStack = [];
+    this.redoStack = [];
+    this.lastUploadedLink = null;
+    this.img = new Image();
+
+    console.log('🗑️ Image deleted from canvas.');
   }
-
-  // Reset all editor state
-  this.imageLoaded = false;
-  this.shapes = [];
-  this.undoStack = [];
-  this.redoStack = [];
-  this.lastUploadedLink = null;
-  this.img = new Image();
-
-  console.log('🗑️ Image deleted from canvas.');
-}
 }

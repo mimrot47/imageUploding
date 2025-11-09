@@ -5,6 +5,20 @@
   </span>
 
   <span class="spacer"></span>
+<div class="rename-section" *ngIf="imageLoaded">
+  <div class="rename-input-wrapper">
+    <input
+      id="imageName"
+      type="text"
+      [(ngModel)]="originalFileName"
+      placeholder="Enter image name"
+      class="rename-input"
+      (keydown)="$event.stopPropagation()"
+    />
+    <span class="edit-icon">✏️</span>
+  </div>
+</div>
+
 
   <!-- Color Picker -->
   <button matTooltip="Select Color" class="color-btn">
