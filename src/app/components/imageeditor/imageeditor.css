@@ -212,5 +212,61 @@ button[mat-icon-button][disabled] {
   color: #000;
 }
 
+/* Container for hint + upload */
+.upload-section {
+  text-align: center;
+  margin: 20px 0;
+}
+
+/* Hint styling */
+.hint {
+  font-size: 15px;
+  color: #444;
+  background: #e3f2fd;
+  border: 1px solid #bbdefb;
+  border-radius: 8px;
+  display: inline-block;
+  padding: 8px 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.08);
+  transition: all 0.3s ease;
+}
+
+.hint:hover {
+  background: #bbdefb;
+  transform: scale(1.02);
+}
+
+/* Upload button styling */
+.controls {
+  display: flex;
+  justify-content: center;
+}
+
+.upload-btn {
+  background: linear-gradient(135deg, #42a5f5, #1e88e5);
+  color: white;
+  font-weight: 500;
+  border-radius: 25px;
+  padding: 10px 20px;
+  display: inline-flex;
+  align-items: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  box-shadow: 0 3px 8px rgba(66,165,245,0.3);
+}
+
+.upload-btn:hover {
+  background: linear-gradient(135deg, #64b5f6, #1976d2);
+  box-shadow: 0 4px 12px rgba(25,118,210,0.4);
+  transform: translateY(-1px);
+}
+
+.upload-btn mat-icon {
+  margin-right: 8px;
+  font-size: 20px;
+}
+
+
 
 

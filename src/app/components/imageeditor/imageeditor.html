@@ -59,10 +59,19 @@
 <div class="editor-container">
   <!-- <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button> -->
     @if(imageLoaded === false){
-      <p class="hint">💡 You can also press <b>Ctrl + V</b> to paste an image from clipboard!</p>
-      <div class="controls" >
-    <input type="file" accept="image/*" (change)="onFileSelected($event)" />
+      <div class="upload-section">
+  <p class="hint">
+    💡 You can also press <b>Ctrl + V</b> to paste an image from clipboard!
+  </p>
+
+  <div class="controls">
+    <label class="upload-btn">
+      <input type="file" accept="image/*" (change)="onFileSelected($event)" hidden />
+      <mat-icon>cloud_upload</mat-icon>
+      <span>Upload Image</span>
+    </label>
   </div>
+</div>
     }
   <!-- Canvas -->
   <canvas #myCanvas width="400" height="200" (mousedown)="onMouseDown($event)"
