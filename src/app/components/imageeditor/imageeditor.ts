@@ -610,7 +610,7 @@ private resizeCanvasToImage(): void {
   saveImage(): void {
     const canvas = this.canvasRef.nativeElement;
     const link = document.createElement('a');
-    link.download = 'annotated-image.png';
+    link.download = 'ALImage-image.png';
     link.href = canvas.toDataURL('image/png');
     link.click();
   }
