@@ -1,46 +1,65 @@
-<mat-toolbar style="background-color: rgb(153, 189, 218);">
-  <span>Image Sharing</span>
-  <span class="example-spacer"></span>
+<mat-toolbar color="primary" class="toolbar">
+  <span class="app-title">
+    <mat-icon class="app-icon">brush</mat-icon>
+    Image Sharing
+  </span>
+
+  <span class="spacer"></span>
+
+  <!-- Color Picker -->
+  <button matTooltip="Select Color" class="color-btn">
     <input type="color" [(ngModel)]="selectedColor" class="color-circle" />
-    <mat-form-field>
-  <mat-select matNativeControl [(ngModel)]="selectedTool">
-    <mat-option value="rectangle">Rectangle</mat-option>
-      <mat-option value="circle">Circle</mat-option>
-      <mat-option value="line">Line</mat-option>
-      <mat-option value="arrow">Arrow</mat-option>
-      <mat-option value="hide">Hide (Black Box)</mat-option>
-  </mat-select>
-</mat-form-field>
-  @if(imageLoaded){
- <button matIconButton (click)="undo()" [disabled]="undoStack.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
-    <mat-icon>undo</mat-icon>
   </button>
-  <button matIconButton (click)="redo()" [disabled]="redoStack.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
-    <mat-icon>redo</mat-icon>
-  </button>
-  <button matIconButton (click)="clear()" [disabled]="shapes.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
-    <mat-icon>clear</mat-icon>
-  </button>
-   <button matIconButton (click)="saveImage()" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
-    <mat-icon>cloud_download</mat-icon>
-  </button>
-  <button matIconButton (click)="uploadToGoogleDrive()" class="example-icon" aria-label="Example icon-button with share icon">
-    <mat-icon>share</mat-icon>
-  </button>
-  @if(lastUploadedLink){
-    <button matIconButton (click)="copyLink()" class="example-icon" aria-label="Example icon-button with share icon">
-      <mat-icon>link</mat-icon>
+
+  <!-- Tool Selector -->
+<div class="custom-select-wrapper">
+  <select [(ngModel)]="selectedTool" class="custom-select">
+    <option value="rectangle">Rectangle</option>
+    <option value="circle">Circle</option>
+    <option value="line">Line</option>
+    <option value="arrow">Arrow</option>
+    <option value="hide">Hide (Black Box)</option>
+  </select>
+</div>
+
+  <!-- Action Buttons -->
+  @if (imageLoaded) {
+    <button mat-icon-button matTooltip="Undo" (click)="undo()" [disabled]="undoStack.length === 0">
+      <mat-icon>undo</mat-icon>
+    </button>
+
+    <button mat-icon-button matTooltip="Redo" (click)="redo()" [disabled]="redoStack.length === 0">
+      <mat-icon>redo</mat-icon>
+    </button>
+
+    <button mat-icon-button matTooltip="Clear All" (click)="clear()" [disabled]="shapes.length === 0">
+      <mat-icon>clear_all</mat-icon>
+    </button>
+
+    <button mat-icon-button matTooltip="Download Image" (click)="saveImage()">
+      <mat-icon>cloud_download</mat-icon>
+    </button>
+
+    <button mat-icon-button matTooltip="Upload to Google Drive" (click)="uploadToGoogleDrive()">
+      <mat-icon>cloud_upload</mat-icon>
+    </button>
+
+    @if (lastUploadedLink) {
+      <button mat-icon-button matTooltip="Copy Share Link" (click)="copyLink()">
+        <mat-icon>link</mat-icon>
+      </button>
+    }
+
+    <button mat-icon-button matTooltip="Delete Image" (click)="deleteImage()">
+      <mat-icon color="warn">delete</mat-icon>
     </button>
   }
-
-   <button mat-icon-button (click)="deleteImage()" matTooltip="Delete Image">
-      <mat-icon>delete</mat-icon>
-    </button>
- }
 </mat-toolbar>
+
 <div class="editor-container">
   <!-- <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button> -->
     @if(imageLoaded === false){
+      <p class="hint">💡 You can also press <b>Ctrl + V</b> to paste an image from clipboard!</p>
       <div class="controls" >
     <input type="file" accept="image/*" (change)="onFileSelected($event)" />
   </div>
