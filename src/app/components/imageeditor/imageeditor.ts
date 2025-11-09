@@ -11,7 +11,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MaterialFileInputModule } from 'ngx-material-file-input';
 
-type ShapeType = 'rectangle' | 'circle' | 'line' | 'arrow' | 'hide';
+type ShapeType = 'rectangle' | 'circle' | 'line' | 'arrow' | 'hide' | 'text';
 
 interface Shape {
   type: ShapeType;
@@ -20,6 +20,8 @@ interface Shape {
   w: number;
   h: number;
   color: string;
+  text?: string; // ✅ for text content
+  fontSize?: number;
 }
 
 @Component({
@@ -90,7 +92,7 @@ export class Imageeditor implements AfterViewInit {
         const file = item.getAsFile();
         if (file) {
           this.originalFileName = file.name || 'pasted-image.png';
-          this.imageName = this.originalFileName.replace(/\.[^/.]+$/, "");
+          this.imageName = this.originalFileName.replace(/\.[^/.]+$/, '');
           console.log(this.originalFileName);
           this.loadImageFromFile(file);
         }
@@ -206,7 +208,7 @@ export class Imageeditor implements AfterViewInit {
   // 🔹 Reusable function for both file input and clipboard
   private loadImageFromFile(file: File): void {
     this.originalFileName = file.name;
-    this.imageName = file.name.replace(/\.[^/.]+$/, "");
+    this.imageName = file.name.replace(/\.[^/.]+$/, '');
     console.log(this.originalFileName); // remove file extension
     const reader = new FileReader();
     reader.onload = () => {
@@ -304,11 +306,15 @@ export class Imageeditor implements AfterViewInit {
 
   // 🖱️ Mouse Events
   onMouseDown(event: MouseEvent): void {
+
     if (!this.imageLoaded) return;
     const rect = this.canvasRef.nativeElement.getBoundingClientRect();
     const mouseX = event.clientX - rect.left;
     const mouseY = event.clientY - rect.top;
-
+    if (this.selectedTool === 'text') {
+      this.createTextInput(mouseX, mouseY);
+      return;
+    }
     // 1️⃣ Check resize handle
     if (
       this.selectedShapeIndex !== null &&
@@ -360,6 +366,70 @@ export class Imageeditor implements AfterViewInit {
       color: this.selectedColor,
     };
   }
+
+createTextInput(x: number, y: number): void {
+  const canvas = this.canvasRef.nativeElement;
+  const rect = canvas.getBoundingClientRect();
+
+  const input = document.createElement('input');
+  input.type = 'text';
+  input.placeholder = 'Type text...';
+
+  // Style input
+  Object.assign(input.style, {
+    position: 'fixed',
+    left: `${rect.left + x}px`,
+    top: `${rect.top + y}px`,
+    font: '16px Arial',
+    padding: '4px 6px',
+    border: '1px solid #666',
+    borderRadius: '6px',
+    background: 'rgba(255,255,255,0.95)',
+    color: '#000',
+    zIndex: '2000',
+    outline: 'none',
+    minWidth: '80px',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.15)',
+  });
+
+  document.body.appendChild(input);
+
+  // Slight delay ensures browser properly focuses the field
+  setTimeout(() => input.focus(), 0);
+
+  const finalize = () => {
+    const text = input.value.trim();
+    if (text) {
+      this.pushToUndo();
+      this.shapes.push({
+        type: 'text',
+        x,
+        y: y + 16,
+        w: 0,
+        h: 0,
+        color: this.selectedColor || '#000',
+        text,
+        fontSize: 16,
+      });
+      this.redraw();
+    }
+    input.remove();
+  };
+
+  input.addEventListener('blur', finalize);
+  input.addEventListener('keydown', (e: KeyboardEvent) => {
+    e.stopPropagation(); // ✅ prevent canvas or Angular capturing Backspace/Delete
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      finalize();
+    } else if (e.key === 'Escape') {
+      input.remove();
+    }
+  });
+}
+
+
+
   showToast(message: string) {
     const toast = document.createElement('div');
     toast.textContent = message;
@@ -574,6 +644,10 @@ export class Imageeditor implements AfterViewInit {
         );
         ctx.stroke();
       }
+    } else if (s.type === 'text' && s.text) {
+      ctx.font = `${s.fontSize || 16}px Arial`;
+      ctx.fillStyle = s.color;
+      ctx.fillText(s.text, s.x, s.y);
     }
 
     if (selected && (s.type === 'rectangle' || s.type === 'hide' || s.type === 'circle')) {
