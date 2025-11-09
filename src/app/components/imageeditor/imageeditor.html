@@ -1,8 +1,5 @@
 <mat-toolbar style="background-color: rgb(153, 189, 218);">
-  <button matIconButton class="example-icon" aria-label="Example icon-button with menu icon">
-    <mat-icon>menu</mat-icon>
-  </button>
-  <span>My App</span>
+  <span>Image Sharing</span>
   <span class="example-spacer"></span>
     <input type="color" [(ngModel)]="selectedColor" />
     <mat-form-field>
@@ -37,15 +34,12 @@
 </mat-toolbar>
 <div class="editor-container">
   <!-- <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button> -->
-
-  <div class="controls">
+    @if(imageLoaded === false){
+      <div class="controls" >
     <input type="file" accept="image/*" (change)="onFileSelected($event)" />
-
   </div>
-
-
-
+    }
   <!-- Canvas -->
-  <canvas #myCanvas width="400" height="200" style="border:1px solid black;" (mousedown)="onMouseDown($event)"
+  <canvas #myCanvas width="400" height="200" (mousedown)="onMouseDown($event)"
     (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()"></canvas>
 </div>

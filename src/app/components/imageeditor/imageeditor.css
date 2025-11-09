@@ -1,12 +1,9 @@
-/* .editor-container {
-  max-width: 900px;
-  margin: 20px auto;
-  padding: 16px;
+ .editor-container {
+  width: 95%;
   text-align: center;
-  transition: border 0.3s ease;
-  border: 2px dashed transparent;
+  margin-top: 1em;
 }
-
+/*
 .editor-container.dragover {
   border-color: #3f51b5;
   background-color: #f5f5f5;
@@ -27,13 +24,14 @@
   flex-wrap: wrap;
 }
 
-canvas {
+ */
+
+ canvas {
   border: 1px solid #ccc;
   cursor: crosshair;
   max-width: 100%;
   border-radius: 4px;
-} */
-
+}
 .example-spacer {
   flex: 1 1 auto;
 }
