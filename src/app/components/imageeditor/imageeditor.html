@@ -1,5 +1,5 @@
 <div class="editor-container">
-  <h3>Angular 20 Image Editor</h3>
+  <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button>
 
   <div class="controls">
     <input type="file" accept="image/*" (change)="onFileSelected($event)" />
@@ -15,23 +15,14 @@
       <option value="hide">Hide (Black Box)</option>
     </select>
   </div>
-  <p class="hint">💡 You can also press <b>Ctrl + V</b> to paste an image from clipboard!</p>
-
   <div class="buttons" *ngIf="imageLoaded">
     <button (click)="undo()" [disabled]="undoStack.length === 0">Undo</button>
     <button (click)="redo()" [disabled]="redoStack.length === 0">Redo</button>
     <button (click)="clear()" [disabled]="shapes.length === 0">Clear</button>
-    <button (click)="saveImage()">Save</button>
+    <button (click)="uploadToGoogleDrive()">Save</button>
   </div>
 
   <!-- Canvas -->
-  <canvas
-    #myCanvas
-    width="800"
-    height="500"
-    style="border:1px solid black;"
-    (mousedown)="onMouseDown($event)"
-    (mousemove)="onMouseMove($event)"
-    (mouseup)="onMouseUp()"
-  ></canvas>
+  <canvas #myCanvas width="800" height="500" style="border:1px solid black;" (mousedown)="onMouseDown($event)"
+    (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()"></canvas>
 </div>

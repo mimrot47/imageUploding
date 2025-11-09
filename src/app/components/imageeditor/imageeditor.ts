@@ -22,15 +22,17 @@ interface Shape {
 })
 export class Imageeditor implements AfterViewInit {
   @ViewChild('myCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
-  private CLIENT_ID = 'YOUR_GOOGLE_OAUTH_CLIENT_ID';
-  private API_KEY = 'YOUR_GOOGLE_API_KEY'; // Optional for Drive v3
+  private CLIENT_ID = '402622394318-d1l4vbfgaqndnidbmsdmjtmj52d4j574.apps.googleusercontent.com';
+  private API_KEY = 'AIzaSyAZ9jPeATDM0Qdzi4ghjRXfzioskCoT0xI'; // Optional for Drive v3
   private SCOPES = 'https://www.googleapis.com/auth/drive.file';
+  private accessToken: string | null = null;
 
 private gapiLoaded = false;
 
   private ctx!: CanvasRenderingContext2D;
   private img = new Image();
   imageLoaded = false;
+  lastUploadedLink: string | null = null;
 
   shapes: Shape[] = [];
   undoStack: Shape[][] = [];
@@ -74,6 +76,109 @@ onPaste(event: ClipboardEvent): void {
   }
 }
 
+
+
+// Initialize gapi client and GIS token client
+async initGoogleAPI() {
+  return new Promise<void>((resolve, reject) => {
+    const g = (window as any);
+    if (!g.gapi) {
+      return reject('Google API not loaded');
+    }
+
+    g.gapi.load('client', async () => {
+      try {
+        await g.gapi.client.init({
+          apiKey: this.API_KEY,
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest'],
+        });
+
+        // Initialize the new GIS client
+        this.initTokenClient();
+        resolve();
+      } catch (e) {
+        reject(e);
+      }
+    });
+  });
+}
+
+private tokenClient: any;
+
+initTokenClient() {
+  const google = (window as any).google;
+  this.tokenClient = google.accounts.oauth2.initTokenClient({
+    client_id: this.CLIENT_ID,
+    scope: this.SCOPES,
+    callback: (response: any) => {
+      if (response && response.access_token) {
+        this.accessToken = response.access_token;
+        this.finishUploadToDrive();
+      }
+    },
+  });
+}
+
+async uploadToGoogleDrive(): Promise<void> {
+  if (!this.accessToken) {
+    await this.initGoogleAPI();
+    // Prompt user to sign in and grant access
+    this.tokenClient.requestAccessToken({ prompt: 'consent' });
+  } else {
+    this.finishUploadToDrive();
+  }
+}
+
+private async finishUploadToDrive() {
+
+  if (!this.accessToken) {
+    alert('⚠️ No access token found.');
+    return;
+  }
+
+  const canvas = this.canvasRef.nativeElement;
+  const blob = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob((b) => (b ? resolve(b) : reject('Failed to convert to Blob')), 'image/png');
+  });
+
+  const metadata = {
+    name: `annotated-${Date.now()}.png`,
+    mimeType: 'image/png',
+  };
+
+  const form = new FormData();
+  form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+  form.append('file', blob);
+
+  // Upload file
+  const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+    method: 'POST',
+    headers: new Headers({ Authorization: 'Bearer ' + this.accessToken }),
+    body: form,
+  });
+
+  const file = await res.json();
+
+  // Make file public
+  await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}/permissions`, {
+  method: 'POST',
+  headers: new Headers({
+    Authorization: 'Bearer ' + this.accessToken,
+    'Content-Type': 'application/json',
+  }),
+  body: JSON.stringify({ role: 'reader', type: 'anyone' }),
+});
+
+// Build direct-view URL
+const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
+
+// Copy link to clipboard
+await navigator.clipboard.writeText(publicUrl);
+
+// Show toast message instead of alert
+this.showToast('✅ Link copied to clipboard!');
+
+}
 // 🔹 Reusable function for both file input and clipboard
 private loadImageFromFile(file: File): void {
   const reader = new FileReader();
@@ -117,6 +222,13 @@ private loadImageFromFile(file: File): void {
       this.redraw();
     }
   }
+
+  copyLink() {
+  if (this.lastUploadedLink) {
+    navigator.clipboard.writeText(this.lastUploadedLink);
+    this.showToast('🔗 Link copied again!');
+  }
+}
 
   // Upload Image
   onFileSelected(event: Event): void {
@@ -226,6 +338,34 @@ private resizeCanvasToImage(): void {
       color: this.selectedColor,
     };
   }
+  showToast(message: string) {
+  const toast = document.createElement('div');
+  toast.textContent = message;
+  toast.style.position = 'fixed';
+  toast.style.bottom = '20px';
+  toast.style.left = '50%';
+  toast.style.transform = 'translateX(-50%)';
+  toast.style.background = '#333';
+  toast.style.color = '#fff';
+  toast.style.padding = '10px 20px';
+  toast.style.borderRadius = '8px';
+  toast.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
+  toast.style.fontSize = '14px';
+  toast.style.zIndex = '9999';
+  toast.style.opacity = '0';
+  toast.style.transition = 'opacity 0.3s ease';
+
+  document.body.appendChild(toast);
+
+  // Animate in
+  requestAnimationFrame(() => (toast.style.opacity = '1'));
+
+  // Remove after 3 seconds
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    setTimeout(() => toast.remove(), 300);
+  }, 3000);
+}
 
   onMouseMove(event: MouseEvent): void {
     if (!this.imageLoaded) return;
