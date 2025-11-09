@@ -180,7 +180,7 @@ private async finishUploadToDrive() {
 
 // Build direct-view URL
 const publicUrl = `https://drive.google.com/uc?export=view&id=${file.id}`;
-
+this.lastUploadedLink = publicUrl;
 // Copy link to clipboard
 await navigator.clipboard.writeText(publicUrl);
 

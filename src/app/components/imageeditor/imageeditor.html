@@ -1,15 +1,15 @@
 <mat-toolbar style="background-color: rgb(153, 189, 218);">
   <span>Image Sharing</span>
   <span class="example-spacer"></span>
-    <input type="color" [(ngModel)]="selectedColor" />
+    <input type="color" [(ngModel)]="selectedColor" class="color-circle" />
     <mat-form-field>
-  <select matNativeControl [(ngModel)]="selectedTool">
-    <option value="rectangle">Rectangle</option>
-      <option value="circle">Circle</option>
-      <option value="line">Line</option>
-      <option value="arrow">Arrow</option>
-      <option value="hide">Hide (Black Box)</option>
-  </select>
+  <mat-select matNativeControl [(ngModel)]="selectedTool">
+    <mat-option value="rectangle">Rectangle</mat-option>
+      <mat-option value="circle">Circle</mat-option>
+      <mat-option value="line">Line</mat-option>
+      <mat-option value="arrow">Arrow</mat-option>
+      <mat-option value="hide">Hide (Black Box)</mat-option>
+  </mat-select>
 </mat-form-field>
   @if(imageLoaded){
  <button matIconButton (click)="undo()" [disabled]="undoStack.length === 0" class="example-icon favorite-icon" aria-label="Example icon-button with heart icon">
@@ -27,9 +27,12 @@
   <button matIconButton (click)="uploadToGoogleDrive()" class="example-icon" aria-label="Example icon-button with share icon">
     <mat-icon>share</mat-icon>
   </button>
-  <button matIconButton *ngIf="lastUploadedLink" (click)="copyLink()" class="example-icon" aria-label="Example icon-button with share icon">
-    <mat-icon>copy</mat-icon>
-  </button>
+  @if(lastUploadedLink){
+    <button matIconButton (click)="copyLink()" class="example-icon" aria-label="Example icon-button with share icon">
+      <mat-icon>link</mat-icon>
+    </button>
+  }
+
    <button mat-icon-button (click)="deleteImage()" matTooltip="Delete Image">
       <mat-icon>delete</mat-icon>
     </button>
