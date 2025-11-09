@@ -19,7 +19,7 @@
   </div>
 </div>
 
-
+@if (imageLoaded) {
   <!-- Color Picker -->
   <button matTooltip="Select Color" class="color-btn">
     <input type="color" [(ngModel)]="selectedColor" class="color-circle" />
@@ -38,7 +38,7 @@
 </div>
 
   <!-- Action Buttons -->
-  @if (imageLoaded) {
+
     <button mat-icon-button matTooltip="Undo" (click)="undo()" [disabled]="undoStack.length === 0">
       <mat-icon>undo</mat-icon>
     </button>
