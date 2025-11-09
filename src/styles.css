@@ -2,3 +2,10 @@
 @use '@angular/material' as mat;
 html, body { height: 100%; }
 body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+
+:root {
+  @include mat.toolbar-overrides((
+    container-background-color: orange,
+    container-text-color: red,
+  ));
+}

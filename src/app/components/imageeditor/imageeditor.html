@@ -1,29 +1,81 @@
-<div class="editor-container">
-  <button *ngIf="lastUploadedLink" (click)="copyLink()">Copy Link</button>
+<mat-toolbar color="primary" class="toolbar">
+  <span class="app-title">
+    <mat-icon class="app-icon">brush</mat-icon>
+    Pik Share
+  </span>
 
-  <div class="controls">
-    <input type="file" accept="image/*" (change)="onFileSelected($event)" />
-    <label>
-      Color:
-      <input type="color" [(ngModel)]="selectedColor" />
-    </label>
-    <select [(ngModel)]="selectedTool">
+  <span class="pikshar-spacer"></span>
+  <div class="rename-section" *ngIf="imageLoaded">
+    <div class="rename-input-wrapper">
+      <input id="imageName" type="text" [(ngModel)]="originalFileName" placeholder="Enter image name"
+        class="rename-input" (keydown)="$event.stopPropagation()" />
+      <span class="edit-icon">✏️</span>
+    </div>
+  </div>
+
+  @if (imageLoaded) {
+  <!-- Color Picker -->
+  <button matTooltip="Select Color" class="color-btn">
+    <input type="color" [(ngModel)]="selectedColor" class="color-circle" />
+  </button>
+
+  <!-- Tool Selector -->
+  <div class="custom-select-wrapper">
+    <select [(ngModel)]="selectedTool" class="custom-select">
       <option value="rectangle">Rectangle</option>
+      <option value="text">Text</option>
       <option value="circle">Circle</option>
       <option value="line">Line</option>
       <option value="arrow">Arrow</option>
       <option value="hide">Hide (Black Box)</option>
     </select>
   </div>
-  <div class="buttons" *ngIf="imageLoaded">
-    <button (click)="undo()" [disabled]="undoStack.length === 0">Undo</button>
-    <button (click)="redo()" [disabled]="redoStack.length === 0">Redo</button>
-    <button (click)="clear()" [disabled]="shapes.length === 0">Clear</button>
-    <button (click)="uploadToGoogleDrive()">Save</button>
-    <button (click)="saveImage()">Save</button>
-  </div>
 
+  <!-- Action Buttons -->
+  <button mat-icon-button matTooltip="Undo" (click)="undo()" [disabled]="undoStack.length === 0">
+    <mat-icon>undo</mat-icon>
+  </button>
+  <button mat-icon-button matTooltip="Redo" (click)="redo()" [disabled]="redoStack.length === 0">
+    <mat-icon>redo</mat-icon>
+  </button>
+  <button mat-icon-button matTooltip="Clear All" (click)="clear()" [disabled]="shapes.length === 0">
+    <mat-icon>clear_all</mat-icon>
+  </button>
+  <button mat-icon-button matTooltip="Download Image" (click)="saveImage()">
+    <mat-icon>cloud_download</mat-icon>
+  </button>
+  <button mat-icon-button matTooltip="Upload to Google Drive" (click)="uploadToGoogleDrive()">
+    <mat-icon>cloud_upload</mat-icon>
+  </button>
+  @if (lastUploadedLink) {
+  <button mat-icon-button matTooltip="Copy Share Link" (click)="copyLink()">
+    <mat-icon>link</mat-icon>
+  </button>
+  }
+  <button mat-icon-button matTooltip="Delete Image" (click)="deleteImage()">
+    <mat-icon color="warn">delete</mat-icon>
+  </button>
+  }
+</mat-toolbar>
+
+<!-- information message and file upload button -->
+<div class="editor-container">
+  @if(imageLoaded === false){
+  <div class="upload-section">
+    <p class="hint">
+      💡 You can also press <b>Ctrl + V</b> to paste an image from clipboard!
+    </p>
+    <div class="controls">
+      <label class="upload-btn">
+        <input type="file" accept="image/*" (change)="onFileSelected($event)" hidden />
+        <mat-icon>cloud_upload</mat-icon>
+        <span>Upload Image</span>
+      </label>
+    </div>
+  </div>
+  }
   <!-- Canvas -->
-  <canvas #myCanvas width="800" height="500" style="border:1px solid black;" (mousedown)="onMouseDown($event)"
-    (mousemove)="onMouseMove($event)" (mouseup)="onMouseUp()"></canvas>
+  <canvas #myCanvas width="400" height="200" (mousedown)="onMouseDown($event)" (mousemove)="onMouseMove($event)"
+    (mouseup)="onMouseUp()">
+  </canvas>
 </div>
